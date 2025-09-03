@@ -12,33 +12,16 @@ class ClienteDashboardController extends Controller
 {
     public function index()
     {
-        $user = Auth::user();
-
-        // Si no está autenticado o no es cliente, redirigir donde corresponde
-        if (!$user) {
-            return redirect()->route('casa');
-        }
-
-        if ($user->role === 'cliente') {
-            return redirect()->route('cliente.dashboard');
-            if ($user->role === 'productor') {
-                return redirect()->route('dashboard');
-            }
-            // Fallback si tiene otro rol
-            return redirect()->route('casa');
-        }
-
-        // --- Lógica SOLO para clientes ---
+        // Contar productos disponibles
         $productosCount = Producto::count();
 
-        $pedidos = Pedido::with('producto')
-            ->where('user_id', $user->id)
-            ->latest()
-            ->get();
+        // Obtener pedidos del cliente logueado
+        $pedidos = Pedido::where('user_id', Auth::id())->latest()->get();
 
+        // Contar pedidos
         $pedidosCount = $pedidos->count();
 
-        // Total solo de pedidos con producto válido
+         // Total solo de pedidos con producto válido
         $gastosTotales = $pedidos
             ->filter(fn ($p) => $p->producto)
             ->sum(function ($pedido) {
@@ -46,27 +29,14 @@ class ClienteDashboardController extends Controller
                 $cantidad = (float) ($pedido->cantidad ?? 0);
                 return $cantidad * $precio;
             });
+        
 
-        return view('cliente.dashboard', [
-            'usuario'        => $user,
-            'productosCount' => $productosCount,
-            'pedidos'        => $pedidos,
-            'pedidosCount'   => $pedidosCount,
-            'gastosTotales'  => $gastosTotales,
-        ]);
-    }
-    public function cliente()
-    {
-        $user = Auth::user();
-
-        if ($user->role !== 'cliente') {
-            return redirect('/')->with('error', 'No tienes acceso al dashboard de cliente.');
-        }
-
-        // Aquí puedes traer pedidos del cliente, por ejemplo:
-        $misPedidos = Pedido::where('user_id', $user->id)->get();
-
-        // 👉 Cliente tiene su carpeta propia
-        return view('cliente.dashboard', compact('misPedidos'));
+        // Pasar todas las variables a la vista
+        return view('cliente.dashboard', compact(
+            'productosCount',
+            'pedidosCount',
+            'gastosTotales',
+            'pedidos'
+        ));
     }
 }
